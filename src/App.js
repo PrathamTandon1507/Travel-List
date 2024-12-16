@@ -1,29 +1,41 @@
 import { useState } from "react";
 import "./index.css";
 
-const initialItems = [
-  { id: 1, description: "Passports", quantity: 2, packed: false },
-  { id: 2, description: "Socks", quantity: 12, packed: true },
-  { id: 3, description: "Charger", quantity: 1, packed: false },
-];
-
 export default function App() {
   const [items, setItems] = useState([]);
-  function handleItems(item) {
+  function handleAddItems(item) {
     setItems((items) => [...items, item]); //we cannot mutate the original array so we spread original and add items to it
   }
+
+  function handleDeleteItems(id) {
+    //note that the function is actually being called from the Item object and not fromn here, so dont worry about valid/invalid parameters here because they are being passed down there
+    setItems((items) => items.filter((item) => item.id !== id));
+  }
+
+  function handleCheckedItems(id) {
+    setItems((items) =>
+      items.map((item) =>
+        item.id === id ? { ...item, packed: !item.packed } : item
+      )
+    );
+  }
+
   return (
     <div className="app">
       <Logo />
-      <Form onAddChange={handleItems} />
-      <PackingList items={items} />
-      <Stats />
+      <Form onAddChange={handleAddItems} />
+      <PackingList
+        items={items}
+        onDeleteChange={handleDeleteItems}
+        onCheckedChange={handleCheckedItems}
+      />
+      <Stats items={items} />
     </div>
   );
 }
 
 function Logo() {
-  return <h1>🌴 Far Away 👜</h1>;
+  return <h1>🌴 ADIOS 👜</h1>;
 }
 
 //Array.from is used to add 'length' no.of options in select here
@@ -70,7 +82,7 @@ function Form({ onAddChange }) {
       </select>
       <input
         type="text"
-        placeholder="Text.."
+        placeholder="Enter your  items.."
         value={description}
         onChange={(e) => setDescription(e.target.value)}
       />
@@ -78,33 +90,75 @@ function Form({ onAddChange }) {
     </form>
   );
 }
-function Item({ item }) {
+function Item({ item, onDeleteChange, onCheckedChange }) {
   return (
     <li>
+      <input
+        type="checkbox"
+        checked={item.packed} //for checkbox its checked and not value
+        onChange={() => onCheckedChange(item.id)}
+      />
       <span style={item.packed ? { textDecoration: "line-through" } : {}}>
         {item.description} {item.quantity}
       </span>
-      <button>❌</button>
+      <button onClick={() => onDeleteChange(item.id)}>❌</button>
     </li>
   );
 }
 
-function PackingList({ items }) {
+function PackingList({ items, onDeleteChange, onCheckedChange }) {
+  const [sortBy, setSortBy] = useState("input");
+  let sortedItems = [];
+  if (sortBy === "input") sortedItems = items;
+  if (sortBy === "alphabetical")
+    sortedItems = items
+      .slice()
+      .sort((a, b) => a.description.localeCompare(b.description));
+  if (sortBy === "checked")
+    sortedItems = items.slice().sort((a, b) => a.packed - b.packed);
   return (
     <div className="list">
       <ul>
-        {items.map((item) => (
-          <Item item={item} />
+        {sortedItems.map((item) => (
+          <Item
+            item={item}
+            onDeleteChange={onDeleteChange}
+            onCheckedChange={onCheckedChange}
+          />
         ))}
       </ul>
+
+      <div className="actions">
+        <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+          <option value="input">Sort by input order</option>
+          <option value="alphabetical">Sort by alphabetical order</option>
+          <option value="checked">Sort by packed status</option>
+        </select>
+      </div>
     </div>
   );
 }
 
-function Stats() {
+function Stats({ items }) {
+  if (!items.length) {
+    return (
+      <footer className="stats">
+        <em>Add the items that you wish to pack!</em>
+      </footer>
+    );
+  }
+
+  const totalItems = items.length;
+  const checkedItems = items.filter((item) => item.packed).length;
+
   return (
     <footer className="stats">
-      <em>You have packed X items and have X items on the list (X%)</em>
+      <em>
+        {totalItems !== checkedItems
+          ? `You have packed ${checkedItems} items out of ${totalItems} items 
+        (${Math.round((checkedItems * 100) / totalItems)}%)`
+          : "Congratulations! You have succesfully packed your stuff 🎉"}
+      </em>
     </footer>
   );
 }
